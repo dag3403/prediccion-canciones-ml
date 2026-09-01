@@ -1,0 +1,11 @@
+# Entornos y compilaciones
+venv/
+env/
+__pycache__/
+.ipynb_checkpoints/
+.cache
+
+# Resultados de modelos y logs que ocupan espacio
+models/
+catboost_info/
+*.json
