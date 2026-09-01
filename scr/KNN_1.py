@@ -2,14 +2,14 @@ import json
 import os
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 def clean_spotify_data(df):
     df_clean = df.copy()
@@ -43,17 +43,26 @@ preprocessor = ColumnTransformer(transformers=[
     ('album_text', album_pipeline, 'album_name')
 ], remainder='drop')
 
-knn_clf = KNeighborsClassifier(n_neighbors=5, p=2, metric='minkowski', n_jobs=-1)
-pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('classifier', knn_clf)])
+rf_clf = RandomForestClassifier(class_weight=None, random_state=42, n_jobs=-1)
+pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('classifier', rf_clf)])
 
-pipeline.fit(X_train, y_train)
-y_pred = pipeline.predict(X_test)
-y_prob = pipeline.predict_proba(X_test)
+grid_search = GridSearchCV(
+    estimator=pipeline,
+    param_grid={'classifier__n_estimators': [100, 200], 'classifier__max_depth': [None, 15]},
+    cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42),
+    scoring='accuracy',
+    n_jobs=-1
+)
+grid_search.fit(X_train, y_train)
+
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test)
+y_prob = best_model.predict_proba(X_test)
 
 os.makedirs("models", exist_ok=True)
 resultados_dict = {
-    "estrategia": "KNN Caso 1: Base Euclidiana (p=2, n_neighbors=5)",
-    "best_parameters": {"n_neighbors": 5, "metric": "euclidean", "p": 2},
+    "estrategia": "Caso 1: Sin balancear",
+    "best_parameters": grid_search.best_params_,
     "metrics": {
         "accuracy": float(accuracy_score(y_test, y_pred)),
         "precision_weighted": float(precision_score(y_test, y_pred, average='weighted', zero_division=0)),
@@ -65,4 +74,4 @@ resultados_dict = {
 }
 with open("models/resultados_knn_1.json", "w", encoding="utf-8") as f:
     json.dump(resultados_dict, f, indent=4, ensure_ascii=False)
-print("KNN Caso 1 completado y guardado.")
+print("Caso 1 (Sin balancear) completado y guardado.")
