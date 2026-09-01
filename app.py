@@ -1,5 +1,6 @@
 import os
 import json
+import numpy as np
 import streamlit as st
 import pandas as pd
 import seaborn as sns
@@ -141,25 +142,37 @@ else:
             st.json(row["best_parameters"])
         
         with col2:
-            st.subheader("🧩 Matriz de Confusión")
+            st.subheader("🧩 Matriz de Confusión (% por Artista Real)")
             cm = row["confusion_matrix"]
             if cm:
-                fig, ax = plt.subplots(figsize=(6, 5))
+                # --- GRÁFICO MÁS GRANDE PARA EVITAR SOLAPAMIENTOS ---
+                fig, ax = plt.subplots(figsize=(16, 16))
                 
-                # --- MEJORA VISUAL DE LA MATRIZ DE CONFUSIÓN ---
+                # Conversión a porcentajes por fila (canciones del cantante)
+                cm_arr = np.array(cm, dtype=float)
+                row_sums = cm_arr.sum(axis=1, keepdims=True)
+                row_sums[row_sums == 0] = 1.0
+                cm_percent = (cm_arr / row_sums) * 100.0
+                
+                # Generar etiquetas formateadas
+                annot_matrix = np.array([[f"{val:.1f}%" for val in fila_vals] for fila_vals in cm_percent])
+                
                 sns.heatmap(
-                    cm, 
-                    annot=True,         # Muestra los números dentro de las celdas
-                    fmt="d",            # Formato entero para las cantidades
-                    cmap="Blues",       # Escala de azules con alto contraste
-                    cbar=True,          # Barra de color lateral
-                    linewidths=1.5,     # Grosor de la línea de la cuadrícula
-                    linecolor='white',  # Color blanco para separar claramente los cuadrados
+                    cm_percent, 
+                    annot=annot_matrix,   
+                    fmt="",               
+                    cmap="Blues",       
+                    vmin=0,             
+                    vmax=100,           
+                    cbar=True,          
+                    linewidths=1.5,     
+                    linecolor='white',  
+                    annot_kws={"size": 9}, # Tamaño de letra adaptado al nuevo espacio
                     ax=ax
                 )
                 
-                ax.set_xlabel("Predicción", fontsize=11, fontweight='bold')
-                ax.set_ylabel("Valor Real", fontsize=11, fontweight='bold')
+                ax.set_xlabel("Artista Predicho", fontsize=12, fontweight='bold')
+                ax.set_ylabel("Artista Real", fontsize=12, fontweight='bold')
                 st.pyplot(fig)
             else:
                 st.info("No hay matriz de confusión disponible en este archivo.")
