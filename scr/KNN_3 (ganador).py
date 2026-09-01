@@ -2,7 +2,7 @@ import json
 import os
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
@@ -43,17 +43,31 @@ preprocessor = ColumnTransformer(transformers=[
     ('album_text', album_pipeline, 'album_name')
 ], remainder='drop')
 
-knn_clf = KNeighborsClassifier(n_neighbors=5, p=2, metric='minkowski', n_jobs=-1)
+knn_clf = KNeighborsClassifier(n_jobs=-1)
 pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('classifier', knn_clf)])
 
-pipeline.fit(X_train, y_train)
-y_pred = pipeline.predict(X_test)
-y_prob = pipeline.predict_proba(X_test)
+param_grid = {
+    'classifier__n_neighbors': [3, 5, 7, 9, 11, 13, 15],
+    'classifier__metric': ['euclidean', 'manhattan']
+}
+
+grid_search = GridSearchCV(
+    estimator=pipeline,
+    param_grid=param_grid,
+    cv=StratifiedKFold(n_splits=10, shuffle=True, random_state=42),
+    scoring='accuracy',
+    n_jobs=-1
+)
+grid_search.fit(X_train, y_train)
+
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test)
+y_prob = best_model.predict_proba(X_test)
 
 os.makedirs("models", exist_ok=True)
 resultados_dict = {
-    "estrategia": "KNN Caso 1: Base Euclidiana (p=2, n_neighbors=5)",
-    "best_parameters": {"n_neighbors": 5, "metric": "euclidean", "p": 2},
+    "estrategia": "KNN Caso 3: Optimización con GridSearchCV",
+    "best_parameters": grid_search.best_params_,
     "metrics": {
         "accuracy": float(accuracy_score(y_test, y_pred)),
         "precision_weighted": float(precision_score(y_test, y_pred, average='weighted', zero_division=0)),
@@ -63,6 +77,6 @@ resultados_dict = {
     },
     "confusion_matrix": confusion_matrix(y_test, y_pred).tolist()
 }
-with open("models/resultados_knn_1.json", "w", encoding="utf-8") as f:
+with open("models/resultados_knn_3.json", "w", encoding="utf-8") as f:
     json.dump(resultados_dict, f, indent=4, ensure_ascii=False)
-print("KNN Caso 1 completado y guardado.")
+print("KNN Caso 3 completado y guardado.")

@@ -43,7 +43,7 @@ preprocessor = ColumnTransformer(transformers=[
     ('album_text', album_pipeline, 'album_name')
 ], remainder='drop')
 
-knn_clf = KNeighborsClassifier(n_neighbors=5, p=2, metric='minkowski', n_jobs=-1)
+knn_clf = KNeighborsClassifier(n_neighbors=5, metric='manhattan', n_jobs=-1)
 pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('classifier', knn_clf)])
 
 pipeline.fit(X_train, y_train)
@@ -52,8 +52,8 @@ y_prob = pipeline.predict_proba(X_test)
 
 os.makedirs("models", exist_ok=True)
 resultados_dict = {
-    "estrategia": "KNN Caso 1: Base Euclidiana (p=2, n_neighbors=5)",
-    "best_parameters": {"n_neighbors": 5, "metric": "euclidean", "p": 2},
+    "estrategia": "KNN Caso 2: Distancia Manhattan (p=1, n_neighbors=5)",
+    "best_parameters": {"n_neighbors": 5, "metric": "manhattan", "p": 1},
     "metrics": {
         "accuracy": float(accuracy_score(y_test, y_pred)),
         "precision_weighted": float(precision_score(y_test, y_pred, average='weighted', zero_division=0)),
@@ -63,6 +63,6 @@ resultados_dict = {
     },
     "confusion_matrix": confusion_matrix(y_test, y_pred).tolist()
 }
-with open("models/resultados_knn_1.json", "w", encoding="utf-8") as f:
+with open("models/resultados_knn_2.json", "w", encoding="utf-8") as f:
     json.dump(resultados_dict, f, indent=4, ensure_ascii=False)
-print("KNN Caso 1 completado y guardado.")
+print("KNN Caso 2 completado y guardado.")
