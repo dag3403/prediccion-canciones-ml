@@ -18,6 +18,14 @@ MAPEO_ESTRATEGIAS = {
     "4": "Balanceando al percentil 75"
 }
 
+# Orden lógico para mostrar las estrategias ordenadas
+ORDEN_ESTRATEGIAS = [
+    "Sin balancear",
+    "Penalizando errores en las clases minoritarias",
+    "Balanceando a la mediana",
+    "Balanceando al percentil 75"
+]
+
 # Función para cargar y parsear todos los JSON de la carpeta 'models'
 @st.cache_data
 def cargar_datos():
@@ -67,7 +75,11 @@ def cargar_datos():
                 except Exception as e:
                     st.error(f"Error leyendo {archivo}: {e}")
                     
-    return pd.DataFrame(data)
+    df_temp = pd.DataFrame(data)
+    if not df_temp.empty:
+        # Categorizar para ordenar correctamente las estrategias
+        df_temp["estrategia"] = pd.Categorical(df_temp["estrategia"], categories=ORDEN_ESTRATEGIAS, ordered=True)
+    return df_temp
 
 df = cargar_datos()
 
@@ -79,7 +91,11 @@ else:
     
     modo_vista = st.sidebar.radio(
         "Selecciona el modo de visualización:", 
-        ["Vista Independiente (Por Modelo y Estrategia)", "Vista Global (Comparativa de Todos)"]
+        [
+            "Vista Independiente (Por Modelo y Estrategia)", 
+            "Comparativa de las 4 estrategias (Por Modelo)", 
+            "Vista Global (Comparativa de Todos)"
+        ]
     )
     
     modelos_disponibles = sorted(df["modelo"].unique())
@@ -94,8 +110,8 @@ else:
         # Filtrar el DataFrame por el modelo elegido
         df_modelo = df[df["modelo"] == modelo_seleccionado]
         
-        # 2. Selector de Estrategia de Balanceo dinámico basado en las disponibles para ese modelo
-        estrategias_disponibles = sorted(df_modelo["estrategia"].unique())
+        # 2. Selector de Estrategia de Balanceo dinámico
+        estrategias_disponibles = [e for e in ORDEN_ESTRATEGIAS if e in df_modelo["estrategia"].values]
         estrategia_seleccionada = st.sidebar.selectbox("Selecciona la Estrategia de Balanceo:", estrategias_disponibles)
         
         # Filtrar el registro exacto
@@ -129,16 +145,56 @@ else:
             cm = row["confusion_matrix"]
             if cm:
                 fig, ax = plt.subplots(figsize=(6, 5))
-                sns.heatmap(cm, annot=False, fmt="d", cmap="Blues", cbar=True, ax=ax)
-                ax.set_xlabel("Predicción")
-                ax.set_ylabel("Valor Real")
+                
+                # --- MEJORA VISUAL DE LA MATRIZ DE CONFUSIÓN ---
+                sns.heatmap(
+                    cm, 
+                    annot=True,         # Muestra los números dentro de las celdas
+                    fmt="d",            # Formato entero para las cantidades
+                    cmap="Blues",       # Escala de azules con alto contraste
+                    cbar=True,          # Barra de color lateral
+                    linewidths=1.5,     # Grosor de la línea de la cuadrícula
+                    linecolor='white',  # Color blanco para separar claramente los cuadrados
+                    ax=ax
+                )
+                
+                ax.set_xlabel("Predicción", fontsize=11, fontweight='bold')
+                ax.set_ylabel("Valor Real", fontsize=11, fontweight='bold')
                 st.pyplot(fig)
             else:
                 st.info("No hay matriz de confusión disponible en este archivo.")
                 
+    elif modo_vista == "Comparativa de las 4 estrategias (Por Modelo)":
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("⚙️ Configuración")
+        
+        # Selector de un único modelo para ver sus 4 opciones juntas
+        modelo_seleccionado = st.sidebar.selectbox("Selecciona el Modelo a analizar:", modelos_disponibles)
+        
+        st.header(f"⚖️ Comparativa de Estrategias para el Modelo: `{modelo_seleccionado}`")
+        
+        df_modelo = df[df["modelo"] == modelo_seleccionado].sort_values("estrategia")
+        
+        if df_modelo.empty:
+            st.warning("No hay datos suficientes para este modelo.")
+        else:
+            # Gráfico de barras comparativo para este modelo específico
+            metrica_grafico = st.selectbox(
+                "Selecciona la métrica a visualizar en el gráfico:",
+                ["f1_score_weighted", "accuracy", "precision_weighted", "recall_weighted", "roc_auc_weighted"]
+            )
+            
+            st.subheader(f"Rendimiento por estrategia ({metrica_grafico.upper()})")
+            st.bar_chart(df_modelo.set_index("estrategia")[metrica_grafico])
+            
+            st.markdown("---")
+            st.subheader("📋 Tabla Comparativa Detallada")
+            columnas_mostrar = ["estrategia", "accuracy", "precision_weighted", "recall_weighted", "f1_score_weighted", "roc_auc_weighted", "archivo"]
+            st.dataframe(df_modelo[columnas_mostrar].set_index("estrategia"), use_container_width=True)
+                
     else:
         # --- VISTA GLOBAL / COMPARATIVA ---
-        st.header("📈 Comparativa Global de Modelos y Estrategias")
+        st.header("📈 Comparativa Global de Todos los Modelos y Estrategias")
         
         # Filtro opcional por modelo en la vista global
         modelos_seleccionados = st.sidebar.multiselect(
@@ -151,7 +207,7 @@ else:
         
         metrica_a_comparar = st.selectbox(
             "Selecciona la métrica principal para comparar:",
-            ["accuracy", "f1_score_weighted", "precision_weighted", "recall_weighted", "roc_auc_weighted"]
+            ["f1_score_weighted", "accuracy", "precision_weighted", "recall_weighted", "roc_auc_weighted"]
         )
         
         if not df_global.empty:
