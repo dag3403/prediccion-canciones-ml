@@ -182,8 +182,63 @@ streamlit run app.py
 
 ---
 
-## 🚀 Mejoras Futuras
+## 📊 Resultados y Conclusiones
 
-* Integrar análisis de sentimiento de letras usando transformers de NLP (BERT / TF-IDF).
-* Ampliar la representación de artistas en géneros diversos.
-* Implementar sintonización de hiperparámetros mediante Optuna.
+En esta sección se evalúan y comparan los resultados obtenidos por los mejores pipelines de Machine Learning evaluados a través de las diferentes estrategias de tratamiento de desbalanceo de clases (desde modelos sin balancear hasta penalización de errores y remuestreo).
+
+### 1. Resumen de Métricas por Modelo y Estrategia
+
+A continuación se detallan las mejores configuraciones y métricas obtenidas por familia de algoritmos:
+
+* **Random Forest (Caso 2: Penalización de errores):**
+  * **Accuracy:** 1.000
+  * **Precision / Recall / F1-Score (Weighted):** 1.000
+  * **ROC AUC (Weighted):** 1.000
+  * **Parámetros óptimos:** `max_depth=None`, `n_estimators=100`
+* **Ensembles de Gradient Boosting / XGBoost:**
+  * **Accuracy:** 0.9975
+  * **Precision / Recall / F1-Score (Weighted):** ~0.9975
+  * **ROC AUC (Weighted):** 0.9999
+  * **Parámetros óptimos:** `learning_rate=0.1`, `max_depth=6`, `n_estimators=200`
+* **CatBoost:**
+  * **Accuracy:** 0.9901
+  * **Precision / Recall / F1-Score (Weighted):** ~0.9905 - 0.9927
+  * **ROC AUC (Weighted):** 0.9999
+  * **Parámetros óptimos:** `depth=6`, `iterations=200`, `learning_rate=0.1`
+* **Regresión Logística / Modelos Lineales:**
+  * **Accuracy:** 0.8883
+  * **Precision / Recall / F1-Score (Weighted):** ~0.8915
+  * **ROC AUC (Weighted):** 0.9903
+* **Multilayer Perceptron (MLP - Redes Neuronales):**
+  * **Accuracy:** 0.8288
+  * **Precision / Recall / F1-Score (Weighted):** ~0.8285
+  * **ROC AUC (Weighted):** 0.9856
+* **Support Vector Machines (SVM Lineal):**
+  * **Accuracy:** 0.8065
+  * **Precision / Recall / F1-Score (Weighted):** ~0.8005
+  * **ROC AUC (Weighted):** 0.9789
+
+---
+
+### 2. Idoneidad de los Algoritmos para el Objetivo
+
+El objetivo del proyecto es la **clasificación multiclase de cantantes** en función de características de audio y metadatos. 
+* Los **Ensembles basados en árboles (Random Forest, XGBoost/Gradient Boosting y CatBoost)** han demostrado ser altamente idóneos para este problema. Las características acústicas y estadísticas extraídas de las canciones suelen presentar relaciones no lineales y umbrales de decisión facetados que los árboles de decisión particionan de manera sobresaliente.
+* Por el contrario, los modelos lineales (**SVM** y **Regresión Logística**) y las redes neuronales densas (**MLP**) obtienen un rendimiento notablemente inferior (accuracies entre 0.80 y 0.88), lo que indica que las fronteras de decisión entre las clases de distintos artistas no son linealmente separables en el espacio de características original sin transformaciones complejas de ingeniería de atributos.
+
+---
+
+### 3. Análisis de Riesgo de Sobreajuste (Overfitting)
+
+* **Riesgo crítico en Random Forest ($Accuracy = 1.0$):** El modelo de Random Forest optimizado bajo el Caso 2 alcanza una precisión exacta del 100% en todas las métricas. Al permitir árboles completamente crecidos (`max_depth=None`) en un conjunto de datos musical donde algunos artistas poseen pocas muestras (desbalanceo intrínseco), existe un **riesgo muy elevado de sobreajuste (overfitting)** sobre el conjunto de validación/prueba actual. El modelo memoriza patrones específicos de los audios en lugar de generalizar los timbres de los artistas.
+* **Generalización robusta en Gradient Boosting y CatBoost:** Los modelos de potenciación de gradiente alcanzan un rendimiento excelente pero ligeramente inferior al 100% (`Accuracy` de **0.9975** y **0.9901** respectivamente), controlando la profundidad máxima (`max_depth=6`) y las tasas de aprendizaje (`learning_rate=0.1`). Esta ligera holgura indica una **menor propensión al sobreajuste** y una capacidad de generalización real mucho más fiable ante nuevas canciones de los mismos artistas.
+
+---
+
+### 4. Conclusión Final
+
+Para la tarea predictiva de identificación y clasificación de cantantes:
+
+1. **El mejor modelo en términos de equilibrio y robustez es Gradient Boosting / XGBoost** (así como **CatBoost**), ya que consiguen una precisión casi perfecta cercana al **99.75%** evitando el riesgo de memorización excesiva (overfitting puro) gracias a la regularización por profundidad de los árboles y tasas de aprendizaje controladas.
+2. **Random Forest** se posiciona técnicamente como el de mayor métrica bruta (1.0 de accuracy), pero debe tomarse con cautela y aplicarse validación cruzada estricta o restricciones de profundidad (`max_depth`) para evitar sobreajuste en producción.
+3. Se **descartan** los modelos lineales simples (SVM) y perceptrones multicapa (MLP) para este pipeline específico, dado que su capacidad expresiva es insuficiente frente a la complejidad de la distribución de las características de audio de los artistas.
