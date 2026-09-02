@@ -12,22 +12,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.utils.class_weight import compute_class_weight
 from xgboost import XGBClassifier
 
-def clean_spotify_data(df):
-    df_clean = df.copy()
-    cols_a_eliminar = ["artist_id", "track_id", "album_id", "track_href", "analysis_url", "external_urls.spotify", "track_uri", "type", "is_local", "disc_number", "album_release_date_precision", "album_release_year"]
-    df_clean = df_clean.drop(columns=[col for col in cols_a_eliminar if col in df_clean.columns], errors='ignore').dropna()
-    rangos_validos = {"danceability": (0.0, 1.0), "energy": (0.0, 1.0), "speechiness": (0.0, 1.0), "acousticness": (0.0, 1.0), "instrumentalness": (0.0, 1.0), "liveness": (0.0, 1.0), "valence": (0.0, 1.0), "key": (0, 11), "mode": (0, 1), "tempo": (0.0, 300.0), "duration_ms": (5000, 1800000)}
-    mask_validos = pd.Series(True, index=df_clean.index)
-    for col, (min_val, max_val) in rangos_validos.items():
-        if col in df_clean.columns: mask_validos &= (df_clean[col] >= min_val) & (df_clean[col] <= max_val)
-    df_clean = df_clean[mask_validos]
-    for text_col in ['track_name', 'album_name']:
-        if text_col in df_clean.columns: df_clean[text_col] = df_clean[text_col].astype(str)
-    return df_clean
 
-filepath = "data/DatosPractica3.csv"
-df_raw = pd.read_csv(filepath)
-df_clean = clean_spotify_data(df_raw)
+filepath = "data/data_clean.csv"
+df_clean = pd.read_csv(filepath)
 
 X = df_clean.drop(columns=['artist_name'], errors='ignore')
 y = LabelEncoder().fit_transform(df_clean['artist_name'])

@@ -17,58 +17,13 @@ from sklearn.metrics import (
 from imblearn.combine import SMOTETomek
 from imblearn.pipeline import Pipeline as ImbPipeline
 
-# --- 1. FUNCIÓN DE LIMPIEZA Y VALIDACIÓN INTEGRAL ---
-def clean_spotify_data(df):
-    df_clean = df.copy()
-    
-    # A. Eliminar variables que no aportan o causan data leakage innecesario
-    cols_a_eliminar = [
-        "artist_id", "track_id", "album_id", "track_href", 
-        "analysis_url", "external_urls.spotify", "track_uri", 
-        "type", "is_local", "disc_number", 
-        "album_release_date_precision", "album_release_year"
-    ]
-    df_clean = df_clean.drop(columns=[col for col in cols_a_eliminar if col in df_clean.columns], errors='ignore')
-    
-    # B. Eliminar registros con al menos un valor nulo crítico
-    filas_iniciales = len(df_clean)
-    df_clean = df_clean.dropna()
-    print(f"Registros eliminados por nulos: {filas_iniciales - len(df_clean)}")
-    
-    # C. Eliminar registros con variables numéricas fuera de rango físico/musical
-    rangos_validos = {
-        "danceability": (0.0, 1.0),
-        "energy": (0.0, 1.0),
-        "speechiness": (0.0, 1.0),
-        "acousticness": (0.0, 1.0),
-        "instrumentalness": (0.0, 1.0),
-        "liveness": (0.0, 1.0),
-        "valence": (0.0, 1.0),
-        "key": (0, 11),
-        "mode": (0, 1),
-        "tempo": (0.0, 300.0),
-        "duration_ms": (5000, 1800000),
-    }
-    
-    mask_validos = pd.Series(True, index=df_clean.index)
-    for col, (min_val, max_val) in rangos_validos.items():
-        if col in df_clean.columns:
-            mask_validos &= (df_clean[col] >= min_val) & (df_clean[col] <= max_val)
-            
-    filas_fuera_rango = len(df_clean) - mask_validos.sum()
-    df_clean = df_clean[mask_validos]
-    print(f"Registros eliminados por estar fuera de rango: {filas_fuera_rango}")
-    
-    return df_clean
 
 # --- EJECUCIÓN PRINCIPAL ---
 if __name__ == "__main__":
     # 1. Cargar datos
-    filepath = "data/DatosPractica3.csv"
-    df_raw = pd.read_csv(filepath)
+    filepath = "data/.csv"
+    df_clean = pd.read_csv(filepath)
 
-    # 2. Aplicar limpieza
-    df_clean = clean_spotify_data(df_raw)
 
     # Asegurarnos de que las columnas de texto existan o combinarlas si es necesario
     # (Ejemplo: si tenemos 'track_name' y 'album_name', creamos un campo de texto combinado)

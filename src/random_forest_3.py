@@ -17,83 +17,13 @@ from sklearn.pipeline import Pipeline  # Asegúrate de tener esta importación a
 from imblearn.pipeline import Pipeline as ImbPipeline
 
 
-# --- 1. FUNCIÓN DE LIMPIEZA Y VALIDACIÓN INTEGRAL ---
-def clean_spotify_data(df):
-    """
-    Realiza toda la limpieza especificada:
-    - Elimina variables irrelevantes.
-    - Elimina registros con valores nulos.
-    - Filtra valores fuera de rango lógico.
-    - Elimina variables categóricas con un único valor (constantes), protegiendo texto y target.
-    """
-    df_clean = df.copy()
-    
-    # A. Eliminar variables que no aportan información o causan data leakage
-    cols_a_eliminar = [
-        "artist_id", "track_id", "album_id", "track_href", 
-        "analysis_url", "external_urls.spotify", "track_uri", 
-        "type", "is_local", "disc_number", 
-        "album_release_date_precision", "album_release_year"
-    ]
-    df_clean = df_clean.drop(columns=[col for col in cols_a_eliminar if col in df_clean.columns], errors='ignore')
-    
-    # B. Eliminar registros con al menos un valor nulo
-    filas_iniciales = len(df_clean)
-    df_clean = df_clean.dropna()
-    print(f"Registros eliminados por nulos: {filas_iniciales - len(df_clean)}")
-    
-    # C. Eliminar registros con variables numéricas fuera de rango
-    rangos_validos = {
-        "danceability": (0.0, 1.0),
-        "energy": (0.0, 1.0),
-        "speechiness": (0.0, 1.0),
-        "acousticness": (0.0, 1.0),
-        "instrumentalness": (0.0, 1.0),
-        "liveness": (0.0, 1.0),
-        "valence": (0.0, 1.0),
-        "key": (0, 11),
-        "mode": (0, 1),
-        "tempo": (0.0, 300.0),
-        "duration_ms": (5000, 1800000),
-    }
-    
-    mask_validos = pd.Series(True, index=df_clean.index)
-    for col, (min_val, max_val) in rangos_validos.items():
-        if col in df_clean.columns:
-            mask_validos &= (df_clean[col] >= min_val) & (df_clean[col] <= max_val)
-            
-    filas_fuera_rango = len(df_clean) - mask_validos.sum()
-    df_clean = df_clean[mask_validos]
-    print(f"Registros eliminados por estar fuera de rango: {filas_fuera_rango}")
-    
-    # D. Revisar variables categóricas: eliminar las que tengan un único valor (constantes)
-    categorical_cols = df_clean.select_dtypes(include=['object', 'category', 'str']).columns
-    cols_a_dropear_cat = []
-    for col in categorical_cols:
-        # Excluimos 'artist_name', 'track_name' y 'album_name' de esta regla
-        if col not in ['artist_name', 'track_name', 'album_name']:
-            if df_clean[col].nunique() <= 1:
-                cols_a_dropear_cat.append(col)
-                
-    if cols_a_dropear_cat:
-        print(f"Eliminando variables categóricas con valor único: {cols_a_dropear_cat}")
-        df_clean = df_clean.drop(columns=cols_a_dropear_cat)
-        
-    # Asegurar que las columnas de texto sean de tipo string
-    for text_col in ['track_name', 'album_name']:
-        if text_col in df_clean.columns:
-            df_clean[text_col] = df_clean[text_col].astype(str)
-            
-    return df_clean
 
 # --- EJECUCIÓN PRINCIPAL ---
 if __name__ == "__main__":
     # 1. Cargar datos
-    filepath = "data/DatosPractica3.csv"
-    df_raw = pd.read_csv(filepath)
+    filepath = "data/.csv"
+    df_clean = pd.read_csv(filepath)
 
-    # 2. Aplicar limpieza completa
-    df_clean = clean_spotify_data(df_raw)
 
     # 3. Mostrar la tabla de conteo de canciones por artista en la terminal
     conteo_artistas_df = df_clean['artist_name'].value_counts().reset_index()
